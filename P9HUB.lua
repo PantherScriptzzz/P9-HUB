@@ -1,234 +1,255 @@
+--[[
+    P9 HUB Script
+    This script includes all features: ESP, Lock, Auto Shoot, Teleport, and CFrame Movement
+    with proper keybinds, GUI, and noclip prevention.
+--]]
+
 -- Services
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
-local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
 
--- Variables
-local hubVisible = true
-local espEnabled = false
-local LockEvent = Instance.new("BindableEvent")
-local ESPEvent = Instance.new("BindableEvent")
-local AutoShootEvent = Instance.new("BindableEvent")
-local TeleportEvent = Instance.new("BindableEvent")
-local CFrameMovementEvent = Instance.new("BindableEvent")
-local lockEnabled = false
+-- UI Setup
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.Name = "P9Hub"
+ScreenGui.ResetOnSpawn = false
+
+local Title = Instance.new("TextLabel")
+Title.Parent = ScreenGui
+Title.Size = UDim2.new(0, 300, 0, 50)
+Title.Position = UDim2.new(0.5, -150, 0, 20)
+Title.BackgroundTransparency = 1
+Title.Text = "P9 HUB"
+Title.TextColor3 = Color3.fromRGB(255, 0, 0)
+Title.TextSize = 24
+Title.TextStrokeTransparency = 0.5
+Title.TextTransparency = 0
+Title.TextStrokeTransparency = 0.3
+Title.TextButton = true
+Title.TextButton.MouseButton1Click:Connect(function()
+    -- Add additional functionality to the title button if necessary.
+end)
+
+local function createFeatureButton(name, position, callback)
+    local button = Instance.new("TextButton")
+    button.Parent = ScreenGui
+    button.Size = UDim2.new(0, 200, 0, 40)
+    button.Position = position
+    button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    button.Text = name
+    button.TextColor3 = Color3.fromRGB(255, 0, 0)
+    button.TextSize = 18
+    button.TextStrokeTransparency = 0.5
+    button.TextButton = true
+    button.MouseButton1Click:Connect(callback)
+end
+
+-- GUI visibility toggle with CTRL
+local guiVisible = true
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.LeftControl then
+        guiVisible = not guiVisible
+        ScreenGui.Enabled = guiVisible
+    end
+end)
+
+-- Welcome text and background fade effect
+local welcomeText = Instance.new("TextLabel")
+welcomeText.Parent = ScreenGui
+welcomeText.Size = UDim2.new(0, 300, 0, 50)
+welcomeText.Position = UDim2.new(0.5, -150, 0.5, -25)
+welcomeText.BackgroundTransparency = 1
+welcomeText.Text = "Welcome to P9 HUB!"
+welcomeText.TextColor3 = Color3.fromRGB(255, 0, 0)
+welcomeText.TextSize = 24
+welcomeText.TextStrokeTransparency = 0.5
+welcomeText.TextTransparency = 1
+
+-- Fade in the text and background
+for i = 1, 20 do
+    welcomeText.TextTransparency = i / 20
+    wait(0.1)
+end
+
+-- CFrame Movement
+local movementSpeed = 50
+local increaseSpeed = 10
+local decreaseSpeed = 5
+local currentSpeed = movementSpeed
+
+local isCFrameActive = false
+
+-- Activate CFrame movement with Q
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed then
+        if input.KeyCode == Enum.KeyCode.Q then
+            isCFrameActive = true
+        elseif input.KeyCode == Enum.KeyCode.P then
+            currentSpeed = currentSpeed + increaseSpeed
+        elseif input.KeyCode == Enum.KeyCode.M then
+            currentSpeed = math.max(currentSpeed - decreaseSpeed, movementSpeed)
+        end
+    end
+end)
+
+-- Deactivate CFrame movement
+RunService.RenderStepped:Connect(function()
+    if isCFrameActive then
+        local moveDirection = Camera.CFrame.LookVector
+        Camera.CFrame = Camera.CFrame * CFrame.new(moveDirection * currentSpeed)
+    end
+end)
+
+-- Lock onto player
+local isLockActive = false
 local targetPlayer = nil
 
--- Function to toggle the hub GUI visibility
-local function toggleHubGUI()
-    hubVisible = not hubVisible
-    if playerGui:FindFirstChild("P9_HUB_GUI") then
-        playerGui.P9_HUB_GUI.Enabled = hubVisible
+local function GetClosestPlayer()
+    local closestDistance = math.huge
+    local closestPlayer = nil
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local screenPosition = Camera:WorldToScreenPoint(player.Character.HumanoidRootPart.Position)
+            local distance = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(screenPosition.X, screenPosition.Y)).magnitude
+
+            if distance < closestDistance then
+                closestDistance = distance
+                closestPlayer = player
+            end
+        end
     end
+    return closestPlayer
 end
 
--- Create the main hub UI
-local function createHubUI()
-    -- Main ScreenGui for P9 HUB
-    local hubGui = Instance.new("ScreenGui", playerGui)
-    hubGui.Name = "P9_HUB_GUI"
-
-    local mainFrame = Instance.new("Frame", hubGui)
-    mainFrame.Size = UDim2.new(0.3, 0, 0.5, 0)
-    mainFrame.Position = UDim2.new(0.35, 0, 0.25, 0)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    mainFrame.BackgroundTransparency = 0.6 -- 40% opacity
-    mainFrame.Visible = hubVisible
-    mainFrame.Draggable = true
-    mainFrame.Selectable = true
-
-    local uiCorner = Instance.new("UICorner", mainFrame)
-    uiCorner.CornerRadius = UDim.new(0.05, 0)
-
-    local titleLabel = Instance.new("TextLabel", mainFrame)
-    titleLabel.Size = UDim2.new(1, 0, 0.1, 0)
-    titleLabel.Position = UDim2.new(0, 0, 0, 0)
-    titleLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    titleLabel.Text = "P9 HUB"
-    titleLabel.TextColor3 = Color3.new(1, 0, 0)
-    titleLabel.TextScaled = true
-    titleLabel.Font = Enum.Font.SourceSansBold
-
-    -- Feature Buttons with Events
-    local features = {
-        {name = "Lock On Target (C)", event = LockEvent},
-        {name = "ESP Toggle (T)", event = ESPEvent},
-        {name = "Auto Shoot (V)", event = AutoShootEvent},
-        {name = "Teleport to Player (Z)", event = TeleportEvent},
-        {name = "CFrame Movement (Q)", event = CFrameMovementEvent}
-    }
-
-    for i, feature in ipairs(features) do
-        local button = Instance.new("TextButton", mainFrame)
-        button.Size = UDim2.new(0.9, 0, 0.12, 0)
-        button.Position = UDim2.new(0.05, 0, 0.1 + (0.15 * (i - 1)), 0)
-        button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        button.Text = feature.name
-        button.TextColor3 = Color3.new(1, 0, 0)
-        button.TextScaled = true
-        button.Font = Enum.Font.SourceSansBold
-
-        button.MouseButton1Click:Connect(function()
-            feature.event:Fire()  -- Fire the event when button is clicked
-        end)
-
-        local buttonCorner = Instance.new("UICorner", button)
-        buttonCorner.CornerRadius = UDim.new(0.05, 0)
-    end
-end
-
--- Toggle GUI visibility with CTRL key
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard then
-        if input.KeyCode == Enum.KeyCode.LeftControl then
-            toggleHubGUI()
+    if input.KeyCode == Enum.KeyCode.C then
+        if isLockActive then
+            targetPlayer = nil
+            isLockActive = false
+        else
+            targetPlayer = GetClosestPlayer()
+            isLockActive = true
         end
     end
 end)
 
--- Run the UI Creation
-createHubUI()
+-- Teleport to nearest player (Z key)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.Z and not gameProcessed then
+        local closestPlayer = GetClosestPlayer()
+        if closestPlayer and closestPlayer.Character then
+            LocalPlayer.Character:SetPrimaryPartCFrame(closestPlayer.Character.HumanoidRootPart.CFrame)
+        end
+    end
+end)
 
--- Expose the events so other scripts can use them
-_G.LockEvent = LockEvent
-_G.ESPEvent = ESPEvent
-_G.AutoShootEvent = AutoShootEvent
-_G.TeleportEvent = TeleportEvent
-_G.CFrameMovementEvent = CFrameMovementEvent
+-- Auto Shoot (toggle V key)
+local isAutoShooting = false
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.V then
+        isAutoShooting = not isAutoShooting
+    end
+end)
 
---[[
------------------------------------------
-Lock Script: Lock onto the nearest target
------------------------------------------
-]]
-_G.LockEvent.Event:Connect(function()
-    local function lockOntoNearest()
-        if lockEnabled then return end  -- Prevent multiple toggles at once
+-- Highlighting and ESP
+local function highlightPlayer(player)
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local highlight = Instance.new("Highlight")
+        highlight.Parent = player.Character
+        highlight.Name = "ESP"
+        highlight.FillColor = Color3.fromRGB(255, 0, 0)
+        highlight.FillTransparency = 0.8
+        highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
+        highlight.OutlineTransparency = 0
+    end
+end
 
-        lockEnabled = true
-        local closestPlayer = nil
-        local shortestDistance = math.huge
+local function removeHighlight(player)
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local highlight = player.Character:FindFirstChild("ESP")
+        if highlight then
+            highlight:Destroy()
+        end
+    end
+end
 
+-- Toggle ESP with T key
+local isESPActive = false
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.T then
+        isESPActive = not isESPActive
         for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).magnitude
-                if distance < shortestDistance then
-                    shortestDistance = distance
-                    closestPlayer = player
+            if player ~= LocalPlayer then
+                if isESPActive then
+                    highlightPlayer(player)
+                else
+                    removeHighlight(player)
                 end
             end
         end
-
-        if closestPlayer then
-            targetPlayer = closestPlayer
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPlayer.Character.HumanoidRootPart.Position)
-            print("Locked onto:", targetPlayer.Name)
-        end
     end
-
-    lockOntoNearest()
 end)
 
---[[
------------------------------------------
-ESP Script: Toggle ESP to highlight players and show names
------------------------------------------
-]]
-_G.ESPEvent.Event:Connect(function()
-    espEnabled = not espEnabled
-    if espEnabled then
-        -- Enable ESP
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character then
-                local highlight = Instance.new("Highlight")
-                highlight.Parent = player.Character
-                highlight.FillColor = Color3.new(1, 0, 0)
-                highlight.OutlineColor = Color3.new(0, 0, 0)
-                highlight.FillTransparency = 0.8
-                highlight.Name = "ESPHighlight"
-
-                local billboard = Instance.new("BillboardGui")
-                billboard.Name = "NameTag"
-                billboard.Parent = player.Character:WaitForChild("Head")
-                billboard.Size = UDim2.new(2, 0, 0.5, 0)
-                billboard.StudsOffset = Vector3.new(0, 2, 0)
-
-                local nameLabel = Instance.new("TextLabel", billboard)
-                nameLabel.Size = UDim2.new(1, 0, 1, 0)
-                nameLabel.BackgroundTransparency = 1
-                nameLabel.Text = player.Name
-                nameLabel.TextColor3 = Color3.new(1, 0, 0)
-                nameLabel.TextScaled = true
-            end
-        end
+-- Add the feature buttons for GUI
+createFeatureButton("Lock (C)", UDim2.new(0.5, -100, 0.3, 0), function()
+    if isLockActive then
+        targetPlayer = nil
+        isLockActive = false
     else
-        -- Disable ESP
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character then
-                local highlight = player.Character:FindFirstChild("ESPHighlight")
-                local nameTag = player.Character:FindFirstChild("Head"):FindFirstChild("NameTag")
-                if highlight then highlight:Destroy() end
-                if nameTag then nameTag:Destroy() end
+        targetPlayer = GetClosestPlayer()
+        isLockActive = true
+    end
+end)
+
+createFeatureButton("ESP (T)", UDim2.new(0.5, -100, 0.35, 0), function()
+    isESPActive = not isESPActive
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            if isESPActive then
+                highlightPlayer(player)
+            else
+                removeHighlight(player)
             end
         end
     end
 end)
 
---[[
------------------------------------------
-Auto Shoot Script: Automatically shoot when target is in crosshairs
------------------------------------------
-]]
-_G.AutoShootEvent.Event:Connect(function()
-    local function autoShoot()
-        -- Add logic for auto-shooting
-        print("Auto shoot activated")
-    end
-
-    autoShoot()
+createFeatureButton("Auto Shoot (V)", UDim2.new(0.5, -100, 0.4, 0), function()
+    isAutoShooting = not isAutoShooting
 end)
 
---[[
------------------------------------------
-Teleport Script: Teleport to nearest player
------------------------------------------
-]]
-_G.TeleportEvent.Event:Connect(function()
-    local function teleportToNearestPlayer()
-        local closestPlayer = nil
-        local shortestDistance = math.huge
-
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).magnitude
-                if distance < shortestDistance then
-                    shortestDistance = distance
-                    closestPlayer = player
-                end
-            end
-        end
-
-        if closestPlayer then
-            LocalPlayer.Character:MoveTo(closestPlayer.Character.HumanoidRootPart.Position)
-            print("Teleported to:", closestPlayer.Name)
-        end
+createFeatureButton("Teleport (Z)", UDim2.new(0.5, -100, 0.45, 0), function()
+    local closestPlayer = GetClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        LocalPlayer.Character:SetPrimaryPartCFrame(closestPlayer.Character.HumanoidRootPart.CFrame)
     end
-
-    teleportToNearestPlayer()
 end)
 
---[[
------------------------------------------
-CFrame Movement Script: Smooth movement of player when enabled
------------------------------------------
-]]
-_G.CFrameMovementEvent.Event:Connect(function()
-    local function cFrameMovement()
-        -- Code for cFrame movement
-        print("CFrame Movement enabled")
-    end
+createFeatureButton("CFrame Speed (Q)", UDim2.new(0.5, -100, 0.5, 0), function()
+    isCFrameActive = not isCFrameActive
+end)
 
-    cFrameMovement()
+-- Noclip prevention (PlatformStand)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.Q then
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChild("Humanoid") then
+            local humanoid = character:FindFirstChild("Humanoid")
+            humanoid.PlatformStand = true
+        end
+    end
+end)
+
+-- Reset platform stand to false on RenderStepped
+RunService.RenderStepped:Connect(function()
+    local character = LocalPlayer.Character
+    if character and character:FindFirstChild("Humanoid") then
+        local humanoid = character:FindFirstChild("Humanoid")
+        humanoid.PlatformStand = false
+    end
 end)
