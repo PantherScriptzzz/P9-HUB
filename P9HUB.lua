@@ -1,63 +1,103 @@
--- Services
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Mouse = Players.LocalPlayer:GetMouse()
-
--- Local player setup
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
-local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-
--- Variables for features
-local cframeMovementEnabled = false
-local speedMultiplier = 1000
-local espEnabled = false
-local autoShootEnabled = false
-local lockTarget = nil
-local teleportTarget = nil
-local hubVisible = true
-local dragToggle = false
-local dragInput, dragStart, startPos
-
--- Welcome UI Creation
-local function createWelcomeUI()
-    local screenGui = Instance.new("ScreenGui", playerGui)
-    screenGui.Name = "WelcomeScreen"
-
-    local textLabel = Instance.new("TextLabel", screenGui)
-    textLabel.Size = UDim2.new(0.3, 0, 0.1, 0)
-    textLabel.Position = UDim2.new(0.35, 0, 0.45, 0)
-    textLabel.BackgroundColor3 = Color3.new(0, 0, 0)
-    textLabel.Text = "Welcome to P9 HUB!"
-    textLabel.TextColor3 = Color3.new(1, 0, 0)
-    textLabel.TextScaled = true
-    textLabel.Font = Enum.Font.SourceSansBold
-
-    local uiCorner = Instance.new("UICorner", textLabel)
-    uiCorner.CornerRadius = UDim.new(0.1, 0)
-
-    textLabel.BackgroundTransparency = 1
-    textLabel.TextTransparency = 1
-
-    for i = 1, 0, -0.1 do
-        textLabel.BackgroundTransparency = i
-        textLabel.TextTransparency = i
-        wait(0.05)
-    end
-
-    wait(5)
-
-    for i = 0, 1, 0.1 do
-        textLabel.BackgroundTransparency = i
-        textLabel.TextTransparency = i
-        wait(0.05)
-    end
-
-    screenGui:Destroy()
+-- Function to initialize individual features
+local function toggleCFrameMovement()
+    cframeMovementEnabled = not cframeMovementEnabled
+    debugStatus("CFrame Movement", cframeMovementEnabled)
 end
 
--- P9 HUB Interface Creation with Draggable Functionality
+local function toggleESP()
+    espEnabled = not espEnabled
+    debugStatus("ESP", espEnabled)
+
+    if espEnabled then
+        -- Enable ESP: Highlight players and add billboard GUI
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                -- Highlight creation
+                local highlight = Instance.new("Highlight")
+                highlight.Parent = player.Character
+                highlight.FillColor = Color3.new(1, 0, 0)
+                highlight.OutlineColor = Color3.new(0, 0, 0)
+                highlight.FillTransparency = 0.8
+                highlight.Name = "ESPHighlight"
+
+                -- Billboard GUI for name
+                local billboard = Instance.new("BillboardGui")
+                billboard.Name = "NameTag"
+                billboard.Parent = player.Character:WaitForChild("Head")
+                billboard.Size = UDim2.new(2, 0, 0.5, 0)
+                billboard.StudsOffset = Vector3.new(0, 2, 0)
+
+                local nameLabel = Instance.new("TextLabel", billboard)
+                nameLabel.Size = UDim2.new(1, 0, 1, 0)
+                nameLabel.BackgroundTransparency = 1
+                nameLabel.Text = player.Name
+                nameLabel.TextColor3 = Color3.new(1, 0, 0)
+                nameLabel.TextScaled = true
+            end
+        end
+    else
+        -- Disable ESP: Remove highlights and billboard GUIs
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local highlight = player.Character:FindFirstChild("ESPHighlight")
+                local nameTag = player.Character:FindFirstChild("Head"):FindFirstChild("NameTag")
+                if highlight then highlight:Destroy() end
+                if nameTag then nameTag:Destroy() end
+            end
+        end
+    end
+end
+
+local function toggleAutoShoot()
+    autoShootEnabled = not autoShootEnabled
+    debugStatus("Auto Shoot", autoShootEnabled)
+end
+
+local function teleportToPlayer()
+    -- Finds the nearest player to teleport to
+    local nearestPlayer = nil
+    local shortestDistance = math.huge
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).magnitude
+            if distance < shortestDistance then
+                shortestDistance = distance
+                nearestPlayer = player
+            end
+        end
+    end
+
+    -- Teleport to the nearest player if found
+    if nearestPlayer then
+        LocalPlayer.Character:SetPrimaryPartCFrame(nearestPlayer.Character.HumanoidRootPart.CFrame)
+        print("Teleported to:", nearestPlayer.Name)
+    end
+end
+
+local function lockOntoTarget()
+    -- Lock onto the closest player
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).magnitude
+            if distance < shortestDistance then
+                shortestDistance = distance
+                closestPlayer = player
+            end
+        end
+    end
+
+    if closestPlayer then
+        -- Lock camera to closest player's position
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestPlayer.Character.HumanoidRootPart.Position)
+        print("Locked onto:", closestPlayer.Name)
+    end
+end
+
+-- Main Hub GUI Creation
 local function createHubUI()
     local hubGui = Instance.new("ScreenGui", playerGui)
     hubGui.Name = "P9_HUB_GUI"
@@ -80,91 +120,44 @@ local function createHubUI()
     titleLabel.TextScaled = true
     titleLabel.Font = Enum.Font.SourceSansBold
 
+    -- Creating buttons for each feature
     local features = {
-        {name = "CFrame Movement (Q/P/M)", hotkey = "Q, P, M", toggleFunc = function() 
-            cframeMovementEnabled = not cframeMovementEnabled 
-            print("CFrame Movement:", cframeMovementEnabled)
-        end},
-        {name = "ESP Toggle (T)", hotkey = "T", toggleFunc = function() 
-            espEnabled = not espEnabled 
-            print("ESP Toggle:", espEnabled)
-        end},
-        {name = "Auto Shoot (V)", hotkey = "V", toggleFunc = function() 
-            autoShootEnabled = not autoShootEnabled 
-            print("Auto Shoot:", autoShootEnabled)
-        end},
-        {name = "Teleport to Player (Z)", hotkey = "Z", toggleFunc = function() 
-            teleportTarget = Mouse.Target
-            print("Teleporting to target")
-        end},
-        {name = "Lock On Target (C)", hotkey = "C", toggleFunc = function() 
-            lockTarget = lockTarget and nil or Mouse.Target
-            print("Lock Target:", lockTarget)
-        end}
+        {name = "CFrame Movement", toggleFunc = toggleCFrameMovement},
+        {name = "ESP Toggle", toggleFunc = toggleESP},
+        {name = "Auto Shoot", toggleFunc = toggleAutoShoot},
+        {name = "Teleport to Player", toggleFunc = teleportToPlayer},
+        {name = "Lock On Target", toggleFunc = lockOntoTarget}
     }
 
-    -- Creating buttons with functionality
     for i, feature in ipairs(features) do
         local button = Instance.new("TextButton", mainFrame)
         button.Size = UDim2.new(0.9, 0, 0.12, 0)
         button.Position = UDim2.new(0.05, 0, 0.1 + (0.15 * (i - 1)), 0)
         button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        button.Text = feature.name .. " (" .. feature.hotkey .. ")"
+        button.Text = feature.name
         button.TextColor3 = Color3.new(1, 0, 0) -- Red text color
         button.TextScaled = true
         button.Font = Enum.Font.SourceSansBold
+
         button.MouseButton1Click:Connect(function()
-            feature.toggleFunc()
-            button.Text = feature.name .. " (" .. feature.hotkey .. ") - " .. (feature.toggleFunc and "ON" or "OFF")
+            feature.toggleFunc() -- Call the feature's toggle function
         end)
 
         local buttonCorner = Instance.new("UICorner", button)
         buttonCorner.CornerRadius = UDim.new(0.05, 0)
     end
-
-    -- Draggable Functionality
-    local function updateInput(input)
-        local delta = input.Position - dragStart
-        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-
-    mainFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragToggle = true
-            dragStart = input.Position
-            startPos = mainFrame.Position
-
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragToggle = false
-                end
-            end)
-        end
-    end)
-
-    mainFrame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-
-    RunService.Heartbeat:Connect(function()
-        if dragToggle then
-            updateInput(dragInput)
-        end
-    end)
-
-    -- Toggle GUI visibility with CTRL key
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard then
-            if input.KeyCode == Enum.KeyCode.LeftControl then
-                hubVisible = not hubVisible
-                mainFrame.Visible = hubVisible
-            end
-        end
-    end)
 end
 
--- Run the UI Creation and Show Welcome Message
+-- Toggle GUI visibility with CTRL key
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard then
+        if input.KeyCode == Enum.KeyCode.LeftControl then
+            hubVisible = not hubVisible
+            hubGui.Visible = hubVisible
+        end
+    end
+end)
+
+-- Run the UI Creation
 createWelcomeUI()
 createHubUI()
