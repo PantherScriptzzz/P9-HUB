@@ -13,6 +13,8 @@ local ESPEvent = Instance.new("BindableEvent")
 local AutoShootEvent = Instance.new("BindableEvent")
 local TeleportEvent = Instance.new("BindableEvent")
 local CFrameMovementEvent = Instance.new("BindableEvent")
+local lockEnabled = false
+local targetPlayer = nil
 
 -- Function to toggle the hub GUI visibility
 local function toggleHubGUI()
@@ -32,7 +34,10 @@ local function createHubUI()
     mainFrame.Size = UDim2.new(0.3, 0, 0.5, 0)
     mainFrame.Position = UDim2.new(0.35, 0, 0.25, 0)
     mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    mainFrame.BackgroundTransparency = 0.6 -- 40% opacity
     mainFrame.Visible = hubVisible
+    mainFrame.Draggable = true
+    mainFrame.Selectable = true
 
     local uiCorner = Instance.new("UICorner", mainFrame)
     uiCorner.CornerRadius = UDim.new(0.05, 0)
@@ -48,11 +53,11 @@ local function createHubUI()
 
     -- Feature Buttons with Events
     local features = {
-        {name = "Lock On Target", event = LockEvent},
-        {name = "ESP Toggle", event = ESPEvent},
-        {name = "Auto Shoot", event = AutoShootEvent},
-        {name = "Teleport to Player", event = TeleportEvent},
-        {name = "CFrame Movement", event = CFrameMovementEvent}
+        {name = "Lock On Target (C)", event = LockEvent},
+        {name = "ESP Toggle (T)", event = ESPEvent},
+        {name = "Auto Shoot (V)", event = AutoShootEvent},
+        {name = "Teleport to Player (Z)", event = TeleportEvent},
+        {name = "CFrame Movement (Q)", event = CFrameMovementEvent}
     }
 
     for i, feature in ipairs(features) do
@@ -100,6 +105,9 @@ Lock Script: Lock onto the nearest target
 ]]
 _G.LockEvent.Event:Connect(function()
     local function lockOntoNearest()
+        if lockEnabled then return end  -- Prevent multiple toggles at once
+
+        lockEnabled = true
         local closestPlayer = nil
         local shortestDistance = math.huge
 
@@ -114,8 +122,9 @@ _G.LockEvent.Event:Connect(function()
         end
 
         if closestPlayer then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestPlayer.Character.HumanoidRootPart.Position)
-            print("Locked onto:", closestPlayer.Name)
+            targetPlayer = closestPlayer
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPlayer.Character.HumanoidRootPart.Position)
+            print("Locked onto:", targetPlayer.Name)
         end
     end
 
