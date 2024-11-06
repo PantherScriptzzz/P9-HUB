@@ -11,8 +11,7 @@ local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- Variables for features
 local cframeMovementEnabled = false
-local speedMultiplier = 0
-local maxSpeedMultiplier = 2000
+local speedMultiplier = 1000
 local espEnabled = false
 local autoShootEnabled = false
 local lockTarget = nil
@@ -82,11 +81,26 @@ local function createHubUI()
     titleLabel.Font = Enum.Font.SourceSansBold
 
     local features = {
-        {name = "CFrame Movement (Q/P/M)", hotkey = "Q, P, M", toggleFunc = function() cframeMovementEnabled = not cframeMovementEnabled end},
-        {name = "ESP Toggle (T)", hotkey = "T", toggleFunc = function() espEnabled = not espEnabled end},
-        {name = "Auto Shoot (V)", hotkey = "V", toggleFunc = function() autoShootEnabled = not autoShootEnabled end},
-        {name = "Teleport to Player (Z)", hotkey = "Z", toggleFunc = function() teleportTarget = Mouse.Target end},
-        {name = "Lock On Target (C)", hotkey = "C", toggleFunc = function() lockTarget = lockTarget and nil or Mouse.Target end}
+        {name = "CFrame Movement (Q/P/M)", hotkey = "Q, P, M", toggleFunc = function() 
+            cframeMovementEnabled = not cframeMovementEnabled 
+            print("CFrame Movement:", cframeMovementEnabled)
+        end},
+        {name = "ESP Toggle (T)", hotkey = "T", toggleFunc = function() 
+            espEnabled = not espEnabled 
+            print("ESP Toggle:", espEnabled)
+        end},
+        {name = "Auto Shoot (V)", hotkey = "V", toggleFunc = function() 
+            autoShootEnabled = not autoShootEnabled 
+            print("Auto Shoot:", autoShootEnabled)
+        end},
+        {name = "Teleport to Player (Z)", hotkey = "Z", toggleFunc = function() 
+            teleportTarget = Mouse.Target
+            print("Teleporting to target")
+        end},
+        {name = "Lock On Target (C)", hotkey = "C", toggleFunc = function() 
+            lockTarget = lockTarget and nil or Mouse.Target
+            print("Lock Target:", lockTarget)
+        end}
     }
 
     -- Creating buttons with functionality
@@ -99,7 +113,10 @@ local function createHubUI()
         button.TextColor3 = Color3.new(1, 0, 0) -- Red text color
         button.TextScaled = true
         button.Font = Enum.Font.SourceSansBold
-        button.MouseButton1Click:Connect(feature.toggleFunc) -- Connect each button to its toggle function
+        button.MouseButton1Click:Connect(function()
+            feature.toggleFunc()
+            button.Text = feature.name .. " (" .. feature.hotkey .. ") - " .. (feature.toggleFunc and "ON" or "OFF")
+        end)
 
         local buttonCorner = Instance.new("UICorner", button)
         buttonCorner.CornerRadius = UDim.new(0.05, 0)
@@ -147,16 +164,6 @@ local function createHubUI()
         end
     end)
 end
-
--- No-Clip Prevention for CFrame Movement
-local function checkCollision(newPosition)
-    local ray = Ray.new(LocalPlayer.Character.HumanoidRootPart.Position, (newPosition - LocalPlayer.Character.HumanoidRootPart.Position).unit * speedMultiplier)
-    local part, _ = workspace:FindPartOnRay(ray, LocalPlayer.Character)
-    return not part -- Returns true if there’s no obstacle
-end
-
--- Other Features (Teleport, Lock-on, etc.)
--- Your existing implementations for teleport, lock-on, auto shoot, ESP toggle, and CFrame Movement will go here.
 
 -- Run the UI Creation and Show Welcome Message
 createWelcomeUI()
