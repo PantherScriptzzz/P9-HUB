@@ -17,8 +17,6 @@ local espEnabled = false
 local autoShootEnabled = false
 local lockTarget = nil
 local teleportTarget = nil
-local espFolder = Instance.new("Folder", workspace)
-espFolder.Name = "ESPFolder"
 local hubVisible = true
 local dragToggle = false
 local dragInput, dragStart, startPos
@@ -79,27 +77,29 @@ local function createHubUI()
     titleLabel.Position = UDim2.new(0, 0, 0, 0)
     titleLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     titleLabel.Text = "P9 HUB"
-    titleLabel.TextColor3 = Color3.new(1, 1, 1)
+    titleLabel.TextColor3 = Color3.new(1, 0, 0)
     titleLabel.TextScaled = true
     titleLabel.Font = Enum.Font.SourceSansBold
 
     local features = {
-        {name = "CFrame Movement (Q/P/M)", hotkey = "Q, P, M"},
-        {name = "ESP Toggle (T)", hotkey = "T"},
-        {name = "Auto Shoot (V)", hotkey = "V"},
-        {name = "Teleport to Player (Z)", hotkey = "Z"},
-        {name = "Lock On Target (C)", hotkey = "C"}
+        {name = "CFrame Movement (Q/P/M)", hotkey = "Q, P, M", toggleFunc = function() cframeMovementEnabled = not cframeMovementEnabled end},
+        {name = "ESP Toggle (T)", hotkey = "T", toggleFunc = function() espEnabled = not espEnabled end},
+        {name = "Auto Shoot (V)", hotkey = "V", toggleFunc = function() autoShootEnabled = not autoShootEnabled end},
+        {name = "Teleport to Player (Z)", hotkey = "Z", toggleFunc = function() teleportTarget = Mouse.Target end},
+        {name = "Lock On Target (C)", hotkey = "C", toggleFunc = function() lockTarget = lockTarget and nil or Mouse.Target end}
     }
 
+    -- Creating buttons with functionality
     for i, feature in ipairs(features) do
         local button = Instance.new("TextButton", mainFrame)
         button.Size = UDim2.new(0.9, 0, 0.12, 0)
-        button.Position = UDim2.new(0.05, 0, 0.1 * i, 0.1)
+        button.Position = UDim2.new(0.05, 0, 0.1 + (0.15 * (i - 1)), 0)
         button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         button.Text = feature.name .. " (" .. feature.hotkey .. ")"
-        button.TextColor3 = Color3.new(1, 1, 1)
+        button.TextColor3 = Color3.new(1, 0, 0) -- Red text color
         button.TextScaled = true
         button.Font = Enum.Font.SourceSansBold
+        button.MouseButton1Click:Connect(feature.toggleFunc) -- Connect each button to its toggle function
 
         local buttonCorner = Instance.new("UICorner", button)
         buttonCorner.CornerRadius = UDim.new(0.05, 0)
@@ -157,37 +157,6 @@ end
 
 -- Other Features (Teleport, Lock-on, etc.)
 -- Your existing implementations for teleport, lock-on, auto shoot, ESP toggle, and CFrame Movement will go here.
-
--- ESP Toggle with Billboard GUI
-local function toggleESP()
-    espEnabled = not espEnabled
-
-    if espEnabled then
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                local highlight = Instance.new("Highlight", espFolder)
-                highlight.Adornee = player.Character
-                highlight.FillColor = Color3.new(1, 0, 0)
-                highlight.OutlineColor = Color3.new(0, 0, 0)
-                highlight.Name = player.Name .. "_ESP"
-
-                local billboard = Instance.new("BillboardGui", highlight)
-                billboard.Adornee = player.Character.HumanoidRootPart
-                billboard.Size = UDim2.new(4, 0, 1, 0)
-                billboard.StudsOffset = Vector3.new(0, 3, 0)
-
-                local nameLabel = Instance.new("TextLabel", billboard)
-                nameLabel.Size = UDim2.new(1, 0, 1, 0)
-                nameLabel.BackgroundTransparency = 1
-                nameLabel.TextColor3 = Color3.new(1, 0, 0)
-                nameLabel.TextScaled = true
-                nameLabel.Text = player.Name
-            end
-        end
-    else
-        espFolder:ClearAllChildren()
-    end
-end
 
 -- Run the UI Creation and Show Welcome Message
 createWelcomeUI()
