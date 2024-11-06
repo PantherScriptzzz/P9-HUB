@@ -17,6 +17,7 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.Name = "P9Hub"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.Enabled = true  -- Make sure the GUI is enabled at the start
 
 local Title = Instance.new("TextLabel")
 Title.Parent = ScreenGui
@@ -29,35 +30,32 @@ Title.TextSize = 24
 Title.TextStrokeTransparency = 0.5
 Title.TextTransparency = 0
 Title.TextStrokeTransparency = 0.3
-Title.TextButton = true
-Title.TextButton.MouseButton1Click:Connect(function()
-    -- Add additional functionality to the title button if necessary.
-end)
 
-local function createFeatureButton(name, position, callback)
-    local button = Instance.new("TextButton")
-    button.Parent = ScreenGui
-    button.Size = UDim2.new(0, 200, 0, 40)
-    button.Position = position
-    button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    button.Text = name
-    button.TextColor3 = Color3.fromRGB(255, 0, 0)
-    button.TextSize = 18
-    button.TextStrokeTransparency = 0.5
-    button.TextButton = true
-    button.MouseButton1Click:Connect(callback)
-end
-
--- GUI visibility toggle with CTRL
-local guiVisible = true
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if input.KeyCode == Enum.KeyCode.LeftControl then
-        guiVisible = not guiVisible
-        ScreenGui.Enabled = guiVisible
+-- Add drag functionality to the title
+local dragging = false
+local dragInput, dragStart, startPos
+Title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Title.Position
     end
 end)
 
--- Welcome text and background fade effect
+Title.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        Title.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+Title.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+-- Fade in the welcome text
 local welcomeText = Instance.new("TextLabel")
 welcomeText.Parent = ScreenGui
 welcomeText.Size = UDim2.new(0, 300, 0, 50)
@@ -69,7 +67,7 @@ welcomeText.TextSize = 24
 welcomeText.TextStrokeTransparency = 0.5
 welcomeText.TextTransparency = 1
 
--- Fade in the text and background
+-- Fade in the text
 for i = 1, 20 do
     welcomeText.TextTransparency = i / 20
     wait(0.1)
@@ -196,6 +194,20 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 -- Add the feature buttons for GUI
+local function createFeatureButton(name, position, callback)
+    local button = Instance.new("TextButton")
+    button.Parent = ScreenGui
+    button.Size = UDim2.new(0, 200, 0, 40)
+    button.Position = position
+    button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    button.Text = name
+    button.TextColor3 = Color3.fromRGB(255, 0, 0)
+    button.TextSize = 18
+    button.TextStrokeTransparency = 0.5
+    button.TextButton = true
+    button.MouseButton1Click:Connect(callback)
+end
+
 createFeatureButton("Lock (C)", UDim2.new(0.5, -100, 0.3, 0), function()
     if isLockActive then
         targetPlayer = nil
@@ -232,24 +244,4 @@ end)
 
 createFeatureButton("CFrame Speed (Q)", UDim2.new(0.5, -100, 0.5, 0), function()
     isCFrameActive = not isCFrameActive
-end)
-
--- Noclip prevention (PlatformStand)
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.Q then
-        local character = LocalPlayer.Character
-        if character and character:FindFirstChild("Humanoid") then
-            local humanoid = character:FindFirstChild("Humanoid")
-            humanoid.PlatformStand = true
-        end
-    end
-end)
-
--- Reset platform stand to false on RenderStepped
-RunService.RenderStepped:Connect(function()
-    local character = LocalPlayer.Character
-    if character and character:FindFirstChild("Humanoid") then
-        local humanoid = character:FindFirstChild("Humanoid")
-        humanoid.PlatformStand = false
-    end
 end)
