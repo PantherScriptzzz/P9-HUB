@@ -6,12 +6,19 @@ local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
+-- Variables for feature states
+local isLockActive = false
+local isESPActive = false
+local isAutoShooting = false
+local isCFrameActive = false
+local cframeSpeed = 1000  -- Default CFrame speed
+
 -- GUI Setup
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.Name = "P9Hub"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Enabled = true  -- Ensure the GUI is enabled at the start
+ScreenGui.Enabled = true
 
 -- Title Setup
 local Title = Instance.new("TextLabel")
@@ -178,10 +185,11 @@ closeButton.MouseButton1Click:Connect(function()
 end)
 
 -- Keybinds to control the features
-local isLockActive = false
-local isESPActive = false
-local isAutoShooting = false
-local isCFrameActive = false
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.LeftControl then
+        mainWindow.Visible = not mainWindow.Visible
+    end
+end)
 
 -- Lock-on functionality
 function LockOntoPlayer(targetPlayer)
@@ -221,121 +229,43 @@ function HighlightPlayer(player)
         if humanoidRootPart then
             local highlight = Instance.new("Highlight")
             highlight.Parent = character
-            highlight.Name = "ESP"
+            highlight.Name = "Highlight"
             highlight.FillColor = Color3.fromRGB(255, 0, 0)
-            highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
-            highlight.FillTransparency = 0.5
+            highlight.FillTransparency = 0.7
             highlight.OutlineTransparency = 0
         end
     end
 end
 
 function RemoveESP()
-    -- Remove all ESP highlights
     for _, player in ipairs(Players:GetPlayers()) do
-        if player.Character then
+        if player ~= LocalPlayer and player.Character then
             local character = player.Character
-            local highlight = character:FindFirstChild("ESP")
-            if highlight then
-                highlight:Destroy()
+            if character:FindFirstChild("Highlight") then
+                character:FindFirstChild("Highlight"):Destroy()
             end
         end
     end
 end
 
--- AutoShoot
+-- AutoShoot Feature
 function StartAutoShoot()
-    -- Implement auto shoot logic
-    RunService.Heartbeat:Connect(function()
-        local targetPlayer = GetClosestPlayer()
-        if targetPlayer then
-            -- Shoot at the target player (implement shooting logic)
-            ShootAtPlayer(targetPlayer)
-        end
-    end)
+    -- Auto shoot logic (lock on to target and shoot when in range)
 end
 
 function StopAutoShoot()
-    -- Stop auto shoot logic (disconnect the heartbeat event)
+    -- Stop auto shoot
 end
 
-function ShootAtPlayer(targetPlayer)
-    -- Replace with actual shooting logic
-    print("Shooting at player: " .. targetPlayer.Name)
-end
-
--- Teleport functionality
-function TeleportToClosestPlayer()
-    local closestPlayer = GetClosestPlayer()
-    if closestPlayer then
-        local humanoidRootPart = closestPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if humanoidRootPart then
-            Camera.CFrame = CFrame.new(humanoidRootPart.Position + Vector3.new(0, 5, 0))
-        end
-    end
-end
-
--- CFrame Speed functionality
+-- CFrame Movement Logic
 function ActivateCFrameSpeed()
-    -- Implement CFrame speed logic here
+    -- Add CFrame speed movement logic
 end
 
 function DeactivateCFrameSpeed()
-    -- Deactivate CFrame speed logic here
+    -- Remove speed boost and reset
 end
 
--- Keybinds to control the features
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    
-    if input.KeyCode == Enum.KeyCode.C then
-        isLockActive = not isLockActive
-        if isLockActive then
-            -- Lock logic here
-            local closestPlayer = GetClosestPlayer()
-            if closestPlayer then
-                LockOntoPlayer(closestPlayer)
-            end
-        else
-            -- Unlock logic here
-        end
-    end
-
-    if input.KeyCode == Enum.KeyCode.T then
-        isESPActive = not isESPActive
-        if isESPActive then
-            -- Activate ESP
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    HighlightPlayer(player)
-                end
-            end
-        else
-            -- Deactivate ESP
-            RemoveESP()
-        end
-    end
-
-    if input.KeyCode == Enum.KeyCode.V then
-        isAutoShooting = not isAutoShooting
-        if isAutoShooting then
-            StartAutoShoot()
-        else
-            StopAutoShoot()
-        end
-    end
-
-    if input.KeyCode == Enum.KeyCode.Z then
-        -- Teleport logic
-        TeleportToClosestPlayer()
-    end
-
-    if input.KeyCode == Enum.KeyCode.Q then
-        isCFrameActive = not isCFrameActive
-        if isCFrameActive then
-            ActivateCFrameSpeed()
-        else
-            DeactivateCFrameSpeed()
-        end
-    end
-end)
+function TeleportToClosestPlayer()
+    -- Implement teleport functionality
+end
