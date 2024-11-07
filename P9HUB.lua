@@ -145,11 +145,12 @@ local function createHubUI()
     titleLabel.TextScaled = true
     titleLabel.Font = Enum.Font.SourceSansBold
 
+    -- Button Creation for each feature
     local features = {
         {name = "ESP Toggle (T)", toggleFunc = toggleESP, key = Enum.KeyCode.T},
         {name = "Auto Shoot (V)", toggleFunc = toggleAutoShoot, key = Enum.KeyCode.V},
         {name = "Teleport to Player (Z)", toggleFunc = teleportToPlayer, key = Enum.KeyCode.Z},
-        {name = "Lock On Target (C)", toggleFunc = toggleLockOnTarget, key = Enum.KeyCode.C}
+        {name = "Lock On Target (Click to Toggle)", toggleFunc = toggleLockOnTarget, key = Enum.KeyCode.C}
     }
 
     for i, feature in ipairs(features) do
@@ -169,6 +170,7 @@ local function createHubUI()
         local buttonCorner = Instance.new("UICorner", button)
         buttonCorner.CornerRadius = UDim.new(0.05, 0)
 
+        -- Hotkey functionality
         UserInputService.InputBegan:Connect(function(input, gameProcessed)
             if not gameProcessed and input.KeyCode == feature.key then
                 feature.toggleFunc()
@@ -188,13 +190,13 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Handle when player respawns to keep GUI visible
+-- Ensure the GUI remains visible after respawn
 Players.LocalPlayer.CharacterAdded:Connect(function()
     local hubGui = PlayerGui:FindFirstChild("P9_HUB_GUI")
     if hubGui then
-        hubGui.Visible = hubVisible -- Make sure the GUI stays visible after respawn
+        hubGui.Visible = hubVisible -- Ensure visibility on respawn
     end
 end)
 
--- Create the UI when the player first joins
+-- Initialize the UI on player join
 createHubUI()
