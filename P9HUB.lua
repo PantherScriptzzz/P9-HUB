@@ -29,7 +29,7 @@ local function createWelcomeUI()
     local textLabel = Instance.new("TextLabel", screenGui)
     textLabel.Size = UDim2.new(0.3, 0, 0.1, 0)
     textLabel.Position = UDim2.new(0.35, 0, 0.45, 0)
-    textLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+    textLabel.BackgroundTransparency = 1 -- No background color
     textLabel.Text = "Welcome to P9 HUB!"
     textLabel.TextColor3 = Color3.new(1, 0, 0)
     textLabel.TextScaled = true
@@ -44,7 +44,7 @@ local function createWelcomeUI()
     local instructionLabel = Instance.new("TextLabel", screenGui)
     instructionLabel.Size = UDim2.new(0.5, 0, 0.2, 0)
     instructionLabel.Position = UDim2.new(0.25, 0, 0.55, 0)
-    instructionLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+    instructionLabel.BackgroundTransparency = 1 -- No background color
     instructionLabel.Text = "HOTKEYS FOR P9 HUB\n\nCAM LOCK (C)\nESP (T)\nAUTO SHOOT (V)\nCFRAME (Q to start , P to increase, M to decrease)\nTeleport to nearest player (Z)"
     instructionLabel.TextColor3 = Color3.new(1, 0, 0)
     instructionLabel.TextScaled = true
@@ -165,6 +165,8 @@ end
 
 -- GUI Visibility Control (FN key to toggle)
 local guiVisible = true
+local screenGui = createWelcomeUI()
+
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard then
         if input.KeyCode == Enum.KeyCode.F then
@@ -175,9 +177,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         end
     end
 end)
-
--- Initialize GUI
-local welcomeGui = createWelcomeUI()
 
 -- Bind keys to features
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
