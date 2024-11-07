@@ -177,7 +177,7 @@ local function createHubUI()
     end
 end
 
--- Toggle GUI visibility with Fn key
+-- Toggle GUI visibility with FN key
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and input.KeyCode == Enum.KeyCode.Function then
         hubVisible = not hubVisible
