@@ -55,10 +55,16 @@ local function createWelcomeUI()
     local instructionFadeInTween = game:GetService("TweenService"):Create(instructionLabel, TweenInfo.new(2), {TextTransparency = 0})
     instructionFadeInTween:Play()
 
-    -- After 7 seconds, remove the instructional text
+    -- After 7 seconds, remove the instructional text and then delete the GUI
     delay(7, function()
+        -- Fade out the instructional text
         local fadeOutTween = game:GetService("TweenService"):Create(instructionLabel, TweenInfo.new(2), {TextTransparency = 1})
         fadeOutTween:Play()
+
+        -- Wait for the fade-out to complete before deleting the GUI
+        fadeOutTween.Completed:Connect(function()
+            screenGui:Destroy()
+        end)
     end)
 
     -- Return the screenGui to be used later
