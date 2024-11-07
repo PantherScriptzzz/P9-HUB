@@ -10,6 +10,7 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local cframeMovementEnabled = false
 local espEnabled = false
 local autoShootEnabled = false
+local lockOnEnabled = false
 local hubVisible = true
 
 -- Debug Status Function
@@ -28,10 +29,8 @@ local function toggleESP()
     debugStatus("ESP", espEnabled)
 
     if espEnabled then
-        -- Enable ESP: Highlight players and add billboard GUI
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
-                -- Highlight creation
                 local highlight = Instance.new("Highlight")
                 highlight.Parent = player.Character
                 highlight.FillColor = Color3.new(1, 0, 0)
@@ -39,7 +38,6 @@ local function toggleESP()
                 highlight.FillTransparency = 0.8
                 highlight.Name = "ESPHighlight"
 
-                -- Billboard GUI for name
                 local billboard = Instance.new("BillboardGui")
                 billboard.Name = "NameTag"
                 billboard.Parent = player.Character:WaitForChild("Head")
@@ -48,14 +46,13 @@ local function toggleESP()
 
                 local nameLabel = Instance.new("TextLabel", billboard)
                 nameLabel.Size = UDim2.new(1, 0, 1, 0)
-                nameLabel.BackgroundTransparency = 1
+                nameLabel.BackgroundTransparency = 0.3
                 nameLabel.Text = player.Name
                 nameLabel.TextColor3 = Color3.new(1, 0, 0)
                 nameLabel.TextScaled = true
             end
         end
     else
-        -- Disable ESP: Remove highlights and billboard GUIs
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
                 local highlight = player.Character:FindFirstChild("ESPHighlight")
@@ -92,23 +89,40 @@ local function teleportToPlayer()
     end
 end
 
-local function lockOntoTarget()
-    local closestPlayer = nil
-    local shortestDistance = math.huge
+local function toggleLockOnTarget()
+    lockOnEnabled = not lockOnEnabled
+    debugStatus("Lock On", lockOnEnabled)
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).magnitude
-            if distance < shortestDistance then
-                shortestDistance = distance
-                closestPlayer = player
+    if lockOnEnabled then
+        local closestPlayer = nil
+        local shortestDistance = math.huge
+
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    closestPlayer = player
+                end
             end
         end
-    end
 
-    if closestPlayer then
-        Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestPlayer.Character.HumanoidRootPart.Position)
-        print("Locked onto:", closestPlayer.Name)
+        if closestPlayer then
+            -- Continuous lock onto closest player
+            RunService:BindToRenderStep("LockOn", Enum.RenderPriority.Camera.Value + 1, function()
+                if closestPlayer and closestPlayer.Character then
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestPlayer.Character.HumanoidRootPart.Position)
+                else
+                    -- If player is not valid, disable lock-on
+                    lockOnEnabled = false
+                    RunService:UnbindFromRenderStep("LockOn")
+                    debugStatus("Lock On", lockOnEnabled)
+                end
+            end)
+        end
+    else
+        -- Disable lock-on
+        RunService:UnbindFromRenderStep("LockOn")
     end
 end
 
@@ -121,27 +135,31 @@ local function createHubUI()
     mainFrame.Size = UDim2.new(0.3, 0, 0.5, 0)
     mainFrame.Position = UDim2.new(0.35, 0, 0.25, 0)
     mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    mainFrame.BackgroundTransparency = 0.5
     mainFrame.Visible = hubVisible
 
     local uiCorner = Instance.new("UICorner", mainFrame)
     uiCorner.CornerRadius = UDim.new(0.05, 0)
 
+    mainFrame.Active = true
+    mainFrame.Draggable = true
+
     local titleLabel = Instance.new("TextLabel", mainFrame)
     titleLabel.Size = UDim2.new(1, 0, 0.1, 0)
     titleLabel.Position = UDim2.new(0, 0, 0, 0)
     titleLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    titleLabel.BackgroundTransparency = 0.3
     titleLabel.Text = "P9 HUB"
     titleLabel.TextColor3 = Color3.new(1, 0, 0)
     titleLabel.TextScaled = true
     titleLabel.Font = Enum.Font.SourceSansBold
 
-    -- Creating buttons for each feature
     local features = {
         {name = "CFrame Movement (X)", toggleFunc = toggleCFrameMovement, key = Enum.KeyCode.X},
         {name = "ESP Toggle (T)", toggleFunc = toggleESP, key = Enum.KeyCode.T},
         {name = "Auto Shoot (V)", toggleFunc = toggleAutoShoot, key = Enum.KeyCode.V},
         {name = "Teleport to Player (Z)", toggleFunc = teleportToPlayer, key = Enum.KeyCode.Z},
-        {name = "Lock On Target (C)", toggleFunc = lockOntoTarget, key = Enum.KeyCode.C}
+        {name = "Lock On Target (C)", toggleFunc = toggleLockOnTarget, key = Enum.KeyCode.C}
     }
 
     for i, feature in ipairs(features) do
@@ -150,7 +168,7 @@ local function createHubUI()
         button.Position = UDim2.new(0.05, 0, 0.1 + (0.15 * (i - 1)), 0)
         button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         button.Text = feature.name
-        button.TextColor3 = Color3.new(1, 0, 0) -- Red text color
+        button.TextColor3 = Color3.new(1, 0, 0)
         button.TextScaled = true
         button.Font = Enum.Font.SourceSansBold
 
@@ -161,7 +179,6 @@ local function createHubUI()
         local buttonCorner = Instance.new("UICorner", button)
         buttonCorner.CornerRadius = UDim.new(0.05, 0)
 
-        -- Hotkey for toggling feature
         UserInputService.InputBegan:Connect(function(input, gameProcessed)
             if not gameProcessed and input.KeyCode == feature.key then
                 feature.toggleFunc()
