@@ -1,30 +1,78 @@
 -- Services
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local Camera = workspace.CurrentCamera
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
+local Mouse = Players.LocalPlayer:GetMouse()
 
--- Feature States
+-- Local player setup
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Variables for features
+local cframeMovementEnabled = false
+local speedMultiplier = 0
+local maxSpeedMultiplier = 2000
 local espEnabled = false
 local autoShootEnabled = false
-local lockOnEnabled = false
-local hubVisible = true
+local lockTarget = nil
+local teleportTarget = nil
+local espFolder = Instance.new("Folder", workspace)
+espFolder.Name = "ESPFolder"
 
--- Debug Status Function
-local function debugStatus(feature, state)
-    print(feature .. (state and " enabled" or " disabled"))
+-- Welcome UI Creation
+local function createWelcomeUI()
+    local screenGui = Instance.new("ScreenGui", playerGui)
+    screenGui.Name = "WelcomeScreen"
+
+    -- Welcome text label
+    local textLabel = Instance.new("TextLabel", screenGui)
+    textLabel.Size = UDim2.new(0.3, 0, 0.1, 0)
+    textLabel.Position = UDim2.new(0.35, 0, 0.45, 0)
+    textLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+    textLabel.Text = "Welcome to P9 HUB!"
+    textLabel.TextColor3 = Color3.new(1, 0, 0)
+    textLabel.TextScaled = true
+    textLabel.Font = Enum.Font.SourceSansBold
+    textLabel.TextTransparency = 1
+
+    -- Fade in effect for welcome text
+    local fadeInTween = game:GetService("TweenService"):Create(textLabel, TweenInfo.new(2), {TextTransparency = 0})
+    fadeInTween:Play()
+
+    -- Instructional text label after welcome message
+    local instructionLabel = Instance.new("TextLabel", screenGui)
+    instructionLabel.Size = UDim2.new(0.5, 0, 0.2, 0)
+    instructionLabel.Position = UDim2.new(0.25, 0, 0.55, 0)
+    instructionLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+    instructionLabel.Text = "HOTKEYS FOR P9 HUB\n\nCAM LOCK (C)\nESP (T)\nAUTO SHOOT (V)\nCFRAME (Q to start , P to increase, M to decrease)\nTeleport to nearest player (Z)"
+    instructionLabel.TextColor3 = Color3.new(1, 0, 0)
+    instructionLabel.TextScaled = true
+    instructionLabel.Font = Enum.Font.SourceSansBold
+    instructionLabel.TextTransparency = 1
+
+    -- Fade in effect for instructions
+    local instructionFadeInTween = game:GetService("TweenService"):Create(instructionLabel, TweenInfo.new(2), {TextTransparency = 0})
+    instructionFadeInTween:Play()
+
+    -- After 7 seconds, remove the instructional text
+    delay(7, function()
+        local fadeOutTween = game:GetService("TweenService"):Create(instructionLabel, TweenInfo.new(2), {TextTransparency = 1})
+        fadeOutTween:Play()
+    end)
+
+    -- Return the screenGui to be used later
+    return screenGui
 end
 
--- Toggle Functions for Each Feature
+-- Function to toggle ESP
 local function toggleESP()
     espEnabled = not espEnabled
-    debugStatus("ESP", espEnabled)
-
     if espEnabled then
+        -- Enable ESP: Highlight players and add billboard GUI
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
+                -- Highlight creation
                 local highlight = Instance.new("Highlight")
                 highlight.Parent = player.Character
                 highlight.FillColor = Color3.new(1, 0, 0)
@@ -32,6 +80,7 @@ local function toggleESP()
                 highlight.FillTransparency = 0.8
                 highlight.Name = "ESPHighlight"
 
+                -- Billboard GUI for name
                 local billboard = Instance.new("BillboardGui")
                 billboard.Name = "NameTag"
                 billboard.Parent = player.Character:WaitForChild("Head")
@@ -40,13 +89,14 @@ local function toggleESP()
 
                 local nameLabel = Instance.new("TextLabel", billboard)
                 nameLabel.Size = UDim2.new(1, 0, 1, 0)
-                nameLabel.BackgroundTransparency = 0.3
+                nameLabel.BackgroundTransparency = 1
                 nameLabel.Text = player.Name
                 nameLabel.TextColor3 = Color3.new(1, 0, 0)
                 nameLabel.TextScaled = true
             end
         end
     else
+        -- Disable ESP: Remove highlights and billboard GUIs
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
                 local highlight = player.Character:FindFirstChild("ESPHighlight")
@@ -58,12 +108,19 @@ local function toggleESP()
     end
 end
 
+-- Function for Auto Shoot toggle (you can expand this with proper logic)
 local function toggleAutoShoot()
     autoShootEnabled = not autoShootEnabled
-    debugStatus("Auto Shoot", autoShootEnabled)
+    if autoShootEnabled then
+        print("Auto Shoot is ON")
+    else
+        print("Auto Shoot is OFF")
+    end
 end
 
+-- Function to teleport to nearest player
 local function teleportToPlayer()
+    -- Finds the nearest player to teleport to
     local nearestPlayer = nil
     local shortestDistance = math.huge
 
@@ -77,126 +134,62 @@ local function teleportToPlayer()
         end
     end
 
+    -- Teleport to the nearest player if found
     if nearestPlayer then
         LocalPlayer.Character:SetPrimaryPartCFrame(nearestPlayer.Character.HumanoidRootPart.CFrame)
         print("Teleported to:", nearestPlayer.Name)
     end
 end
 
-local function toggleLockOnTarget()
-    lockOnEnabled = not lockOnEnabled
-    debugStatus("Lock On", lockOnEnabled)
+-- Function for Lock-On target
+local function lockOntoTarget()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
 
-    if lockOnEnabled then
-        local closestPlayer = nil
-        local shortestDistance = math.huge
-
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).magnitude
-                if distance < shortestDistance then
-                    shortestDistance = distance
-                    closestPlayer = player
-                end
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).magnitude
+            if distance < shortestDistance then
+                shortestDistance = distance
+                closestPlayer = player
             end
         end
+    end
 
-        if closestPlayer then
-            RunService:BindToRenderStep("LockOn", Enum.RenderPriority.Camera.Value + 1, function()
-                if closestPlayer and closestPlayer.Character then
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestPlayer.Character.HumanoidRootPart.Position)
-                else
-                    lockOnEnabled = false
-                    RunService:UnbindFromRenderStep("LockOn")
-                    debugStatus("Lock On", lockOnEnabled)
-                end
-            end)
-        end
-    else
-        RunService:UnbindFromRenderStep("LockOn")
+    if closestPlayer then
+        -- Lock camera to closest player's position
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestPlayer.Character.HumanoidRootPart.Position)
+        print("Locked onto:", closestPlayer.Name)
     end
 end
 
--- Main Hub GUI Creation
-local function createHubUI()
-    local hubGui = Instance.new("ScreenGui", PlayerGui)
-    hubGui.Name = "P9_HUB_GUI"
-
-    local mainFrame = Instance.new("Frame", hubGui)
-    mainFrame.Size = UDim2.new(0.3, 0, 0.5, 0)
-    mainFrame.Position = UDim2.new(0.35, 0, 0.25, 0)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    mainFrame.BackgroundTransparency = 0.5
-    mainFrame.Visible = hubVisible
-
-    local uiCorner = Instance.new("UICorner", mainFrame)
-    uiCorner.CornerRadius = UDim.new(0.05, 0)
-
-    mainFrame.Active = true
-    mainFrame.Draggable = true
-
-    local titleLabel = Instance.new("TextLabel", mainFrame)
-    titleLabel.Size = UDim2.new(1, 0, 0.1, 0)
-    titleLabel.Position = UDim2.new(0, 0, 0, 0)
-    titleLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    titleLabel.BackgroundTransparency = 0.3
-    titleLabel.Text = "P9 HUB"
-    titleLabel.TextColor3 = Color3.new(1, 0, 0)
-    titleLabel.TextScaled = true
-    titleLabel.Font = Enum.Font.SourceSansBold
-
-    -- Button Creation for each feature
-    local features = {
-        {name = "ESP Toggle (T)", toggleFunc = toggleESP, key = Enum.KeyCode.T},
-        {name = "Auto Shoot (V)", toggleFunc = toggleAutoShoot, key = Enum.KeyCode.V},
-        {name = "Teleport to Player (Z)", toggleFunc = teleportToPlayer, key = Enum.KeyCode.Z},
-        {name = "Lock On Target (Click to Toggle)", toggleFunc = toggleLockOnTarget, key = Enum.KeyCode.C}
-    }
-
-    for i, feature in ipairs(features) do
-        local button = Instance.new("TextButton", mainFrame)
-        button.Size = UDim2.new(0.9, 0, 0.12, 0)
-        button.Position = UDim2.new(0.05, 0, 0.1 + (0.15 * (i - 1)), 0)
-        button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        button.Text = feature.name
-        button.TextColor3 = Color3.new(1, 0, 0)
-        button.TextScaled = true
-        button.Font = Enum.Font.SourceSansBold
-
-        button.MouseButton1Click:Connect(function()
-            feature.toggleFunc()
-        end)
-
-        local buttonCorner = Instance.new("UICorner", button)
-        buttonCorner.CornerRadius = UDim.new(0.05, 0)
-
-        -- Hotkey functionality
-        UserInputService.InputBegan:Connect(function(input, gameProcessed)
-            if not gameProcessed and input.KeyCode == feature.key then
-                feature.toggleFunc()
-            end
-        end)
-    end
-end
-
--- Toggle GUI visibility with FN key
+-- GUI Visibility Control (FN key to toggle)
+local guiVisible = true
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.Function then
-        hubVisible = not hubVisible
-        local hubGui = PlayerGui:FindFirstChild("P9_HUB_GUI")
-        if hubGui then
-            hubGui.Visible = hubVisible
+    if not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard then
+        if input.KeyCode == Enum.KeyCode.F then
+            guiVisible = not guiVisible
+            if screenGui then
+                screenGui.Enabled = guiVisible
+            end
         end
     end
 end)
 
--- Ensure the GUI remains visible after respawn
-Players.LocalPlayer.CharacterAdded:Connect(function()
-    local hubGui = PlayerGui:FindFirstChild("P9_HUB_GUI")
-    if hubGui then
-        hubGui.Visible = hubVisible -- Ensure visibility on respawn
+-- Initialize GUI
+local welcomeGui = createWelcomeUI()
+
+-- Bind keys to features
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard then
+        if input.KeyCode == Enum.KeyCode.C then
+            lockOntoTarget()
+        elseif input.KeyCode == Enum.KeyCode.T then
+            toggleESP()
+        elseif input.KeyCode == Enum.KeyCode.V then
+            toggleAutoShoot()
+        elseif input.KeyCode == Enum.KeyCode.Z then
+            teleportToPlayer()
+        end
     end
 end)
-
--- Initialize the UI on player join
-createHubUI()
