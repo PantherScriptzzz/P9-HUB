@@ -20,6 +20,10 @@ local teleportTarget = nil
 local espFolder = Instance.new("Folder", workspace)
 espFolder.Name = "ESPFolder"
 
+-- Lock-on variables
+local isLocking = false  -- Track if locking is enabled
+local lockedPlayer = nil  -- The player currently locked onto
+
 -- Welcome UI Creation
 local function createWelcomeUI()
     local screenGui = Instance.new("ScreenGui", playerGui)
@@ -70,6 +74,45 @@ local function createWelcomeUI()
     -- Return the screenGui to be used later
     return screenGui
 end
+
+-- Lock onto target (toggled by pressing C)
+local function lockOntoTarget()
+    if isLocking then
+        -- If locking is enabled, unlock the target by clearing it
+        lockedPlayer = nil
+        isLocking = false
+        print("Lock is OFF")
+    else
+        -- Find the closest player to lock onto
+        local closestPlayer = nil
+        local shortestDistance = math.huge
+
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    closestPlayer = player
+                end
+            end
+        end
+
+        if closestPlayer then
+            -- Lock camera to closest player's position
+            lockedPlayer = closestPlayer
+            isLocking = true
+            print("Locked onto:", lockedPlayer.Name)
+        end
+    end
+end
+
+-- Update camera to follow the locked player while lock is on
+RunService.RenderStepped:Connect(function()
+    if isLocking and lockedPlayer and lockedPlayer.Character and lockedPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        -- Keep the camera locked onto the player's HumanoidRootPart
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, lockedPlayer.Character.HumanoidRootPart.Position)
+    end
+end)
 
 -- Function to toggle ESP
 local function toggleESP()
@@ -147,28 +190,6 @@ local function teleportToPlayer()
     end
 end
 
--- Function for Lock-On target
-local function lockOntoTarget()
-    local closestPlayer = nil
-    local shortestDistance = math.huge
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).magnitude
-            if distance < shortestDistance then
-                shortestDistance = distance
-                closestPlayer = player
-            end
-        end
-    end
-
-    if closestPlayer then
-        -- Lock camera to closest player's position
-        Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestPlayer.Character.HumanoidRootPart.Position)
-        print("Locked onto:", closestPlayer.Name)
-    end
-end
-
 -- GUI Visibility Control (FN key to toggle)
 local guiVisible = true
 local screenGui = createWelcomeUI()
@@ -180,14 +201,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
             if screenGui then
                 screenGui.Enabled = guiVisible
             end
-        end
-    end
-end)
-
--- Bind keys to features
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard then
-        if input.KeyCode == Enum.KeyCode.C then
+        elseif input.KeyCode == Enum.KeyCode.C then
             lockOntoTarget()
         elseif input.KeyCode == Enum.KeyCode.T then
             toggleESP()
