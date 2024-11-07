@@ -12,6 +12,7 @@ local espEnabled = false
 local autoShootEnabled = false
 local lockOnEnabled = false
 local hubVisible = true
+local cframeSpeed = 50  -- Default CFrame movement speed
 
 -- Debug Status Function
 local function debugStatus(feature, state)
@@ -23,6 +24,45 @@ local function toggleCFrameMovement()
     cframeMovementEnabled = not cframeMovementEnabled
     debugStatus("CFrame Movement", cframeMovementEnabled)
 end
+
+local function adjustCFrameSpeed(increase)
+    if increase then
+        cframeSpeed = math.min(cframeSpeed + 10, 2000)  -- Cap speed at 2000
+    else
+        cframeSpeed = math.max(cframeSpeed - 10, 0)  -- Minimum speed is 0
+    end
+    print("CFrame Speed:", cframeSpeed)
+end
+
+RunService.RenderStepped:Connect(function()
+    if cframeMovementEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        local moveDirection = Vector3.new(0, 0, 0)
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            moveDirection = moveDirection + Camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            moveDirection = moveDirection - Camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            moveDirection = moveDirection - Camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            moveDirection = moveDirection + Camera.CFrame.RightVector
+        end
+
+        local targetPosition = hrp.Position + (moveDirection * cframeSpeed * RunService.RenderStepped:Wait())
+        
+        -- Ensure no clipping
+        local ray = Ray.new(hrp.Position, (targetPosition - hrp.Position).unit * cframeSpeed)
+        local hit, _ = workspace:FindPartOnRay(ray, LocalPlayer.Character)
+        
+        if not hit then  -- Move only if no obstacle detected
+            hrp.CFrame = CFrame.new(targetPosition)
+        end
+    end
+end)
 
 local function toggleESP()
     espEnabled = not espEnabled
@@ -108,12 +148,10 @@ local function toggleLockOnTarget()
         end
 
         if closestPlayer then
-            -- Continuous lock onto closest player
             RunService:BindToRenderStep("LockOn", Enum.RenderPriority.Camera.Value + 1, function()
                 if closestPlayer and closestPlayer.Character then
                     Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestPlayer.Character.HumanoidRootPart.Position)
                 else
-                    -- If player is not valid, disable lock-on
                     lockOnEnabled = false
                     RunService:UnbindFromRenderStep("LockOn")
                     debugStatus("Lock On", lockOnEnabled)
@@ -121,7 +159,6 @@ local function toggleLockOnTarget()
             end)
         end
     else
-        -- Disable lock-on
         RunService:UnbindFromRenderStep("LockOn")
     end
 end
@@ -154,8 +191,13 @@ local function createHubUI()
     titleLabel.TextScaled = true
     titleLabel.Font = Enum.Font.SourceSansBold
 
+    titleLabel.MouseButton1Click:Connect(function()
+        hubVisible = false
+        hubGui.Enabled = hubVisible
+    end)
+
     local features = {
-        {name = "CFrame Movement (X)", toggleFunc = toggleCFrameMovement, key = Enum.KeyCode.X},
+        {name = "CFrame Movement (Q)", toggleFunc = toggleCFrameMovement, key = Enum.KeyCode.Q},
         {name = "ESP Toggle (T)", toggleFunc = toggleESP, key = Enum.KeyCode.T},
         {name = "Auto Shoot (V)", toggleFunc = toggleAutoShoot, key = Enum.KeyCode.V},
         {name = "Teleport to Player (Z)", toggleFunc = teleportToPlayer, key = Enum.KeyCode.Z},
@@ -180,23 +222,21 @@ local function createHubUI()
         buttonCorner.CornerRadius = UDim.new(0.05, 0)
 
         UserInputService.InputBegan:Connect(function(input, gameProcessed)
-            if not gameProcessed and input.KeyCode == feature.key then
-                feature.toggleFunc()
+            if not gameProcessed then
+                if input.KeyCode == feature.key then
+                    feature.toggleFunc()
+                elseif input.KeyCode == Enum.KeyCode.P then
+                    adjustCFrameSpeed(true)
+                elseif input.KeyCode == Enum.KeyCode.M then
+                    adjustCFrameSpeed(false)
+                elseif input.KeyCode == Enum.KeyCode.Fn then
+                    hubVisible = not hubVisible
+                    hubGui.Enabled = hubVisible
+                end
             end
         end)
     end
 end
-
--- Toggle GUI visibility with CTRL key
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.LeftControl then
-        hubVisible = not hubVisible
-        local hubGui = PlayerGui:FindFirstChild("P9_HUB_GUI")
-        if hubGui then
-            hubGui.Visible = hubVisible
-        end
-    end
-end)
 
 -- Run the UI Creation
 createHubUI()
