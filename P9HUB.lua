@@ -188,14 +188,13 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Ensure GUI is recreated when player respawns
+-- Handle when player respawns to keep GUI visible
 Players.LocalPlayer.CharacterAdded:Connect(function()
-    local existingGui = PlayerGui:FindFirstChild("P9_HUB_GUI")
-    if existingGui then
-        existingGui:Destroy()
+    local hubGui = PlayerGui:FindFirstChild("P9_HUB_GUI")
+    if hubGui then
+        hubGui.Visible = hubVisible -- Make sure the GUI stays visible after respawn
     end
-    createHubUI() -- Recreate the GUI after respawn
 end)
 
--- Run the UI Creation on the first load
+-- Create the UI when the player first joins
 createHubUI()
