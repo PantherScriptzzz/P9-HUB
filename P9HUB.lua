@@ -11,8 +11,6 @@ local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- Variables for features
 local cframeMovementEnabled = false
-local speedMultiplier = 0
-local maxSpeedMultiplier = 2000
 local espEnabled = false
 local autoShootEnabled = false
 local lockTarget = nil
